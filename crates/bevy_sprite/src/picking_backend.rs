@@ -13,7 +13,7 @@
 use crate::{Anchor, Sprite};
 use bevy_app::prelude::*;
 use bevy_asset::prelude::*;
-use bevy_camera::{visibility::ViewVisibility, Camera, Projection};
+use bevy_camera::{visibility::{RenderLayers, ViewVisibility}, Camera, Projection};
 use bevy_color::Alpha;
 use bevy_ecs::prelude::*;
 use bevy_image::prelude::*;
@@ -88,6 +88,7 @@ fn sprite_picking(
         &GlobalTransform,
         &Projection,
         Has<SpritePickingCamera>,
+        Option<&RenderLayers>,
     )>,
     primary_window: Query<Entity, With<PrimaryWindow>>,
     images: Res<Assets<Image>>,
@@ -125,18 +126,34 @@ fn sprite_picking(
         pointer_location.location().map(|loc| (pointer, loc))
     }) {
         let mut blocked = false;
-        let Some((cam_entity, camera, cam_transform, Projection::Orthographic(cam_ortho), _)) =
+        // Collect all matching cameras, sort by order (ascending), then select the first one.
+        // This ensures we pick the camera with the lowest order (typically the main camera)
+        // rather than relying on unpredictable iteration order.
+        let Some((cam_entity, camera, cam_transform, cam_ortho, cam_render_layers)) =
             cameras
                 .iter()
-                .filter(|(_, camera, _, _, cam_can_pick)| {
+                .filter(|(_, camera, _, _, cam_can_pick, _)| {
                     let marker_requirement = !settings.require_markers || *cam_can_pick;
                     camera.is_active && marker_requirement
                 })
-                .find(|(_, camera, _, _, _)| {
-                    camera
+                .filter_map(|(cam_entity, camera, cam_transform, projection, _, cam_render_layers)| {
+                    if camera
                         .target
                         .normalize(primary_window)
                         .is_some_and(|x| x == location.target)
+                    {
+                        if let Projection::Orthographic(cam_ortho) = projection {
+                            Some((cam_entity, camera, cam_transform, cam_ortho, cam_render_layers, camera.order))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                })
+                .min_by_key(|(_, _, _, _, _, order)| *order)
+                .map(|(cam_entity, camera, cam_transform, cam_ortho, cam_render_layers, _)| {
+                    (cam_entity, camera, cam_transform, cam_ortho, cam_render_layers)
                 })
         else {
             continue;
