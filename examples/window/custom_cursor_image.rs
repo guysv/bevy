@@ -37,6 +37,12 @@ fn setup_cursor_icon(
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     window: Single<Entity, With<Window>>,
 ) {
+    // Only set up custom cursor if ENABLE_CUSTOM_CURSOR_AT_STARTUP env var is set.
+    // If not set, the default system cursor will be used.
+    if std::env::var("ENABLE_CUSTOM_CURSOR_AT_STARTUP").is_err() {
+        return;
+    }
+
     let layout =
         TextureAtlasLayout::from_grid(UVec2::splat(64), 20, 10, Some(UVec2::splat(5)), None);
     let texture_atlas_layout = texture_atlas_layouts.add(layout);
