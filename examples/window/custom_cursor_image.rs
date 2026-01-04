@@ -95,6 +95,7 @@ fn setup_cameras(mut commands: Commands) {
     if std::env::var("SPAWN_MINIMAP_CAMERA_AT_STARTUP").is_ok() {
         commands.spawn((
             Camera2d,
+            Pickable::IGNORE,
             MinimapCamera,
             Camera {
                 order: 1,
@@ -297,6 +298,7 @@ fn toggle_minimap_camera(
         } else {
             commands.spawn((
                 Camera2d,
+                Pickable::IGNORE,
                 MinimapCamera,
                 Camera {
                     order: 1,
